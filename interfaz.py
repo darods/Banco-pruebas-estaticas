@@ -9,8 +9,14 @@ import serial
 import time
 import csv
 
-ser = serial.Serial('/dev/ttyACM0', 38400, timeout=1)
-ser.flushInput()
+puertoEncontrado = False
+try:
+    ser = serial.Serial('/dev/ttyACM0', 38400, timeout=1)
+    ser.flushInput()
+    puertoEncontrado = True
+except:
+    print("Serial port not found!")
+
 # QtGui.QApplication.setGraphicsSystem('raster')
 
 pg.setConfigOption('background', 'w')
@@ -38,12 +44,15 @@ datos = np.linspace(0, 0)
 def update():
     global curva, datos, decoded_bytes
     datos[:-1] = datos[1:]
-    try:
-        ser_bytes = ser.readline()
-        decoded_bytes = float(ser_bytes[0:len(ser_bytes) - 2].decode("utf-8"))
-        print(decoded_bytes)
-    except ValueError:
-        print(str(ser_bytes[0:len(ser_bytes) - 2].decode("utf-8")))
+    
+    if(puertoEncontrado == True):
+        try:
+            ser_bytes = ser.readline()
+            decoded_bytes = float(ser_bytes[0:len(ser_bytes) - 2].decode("utf-8"))
+            print(decoded_bytes)
+        except ValueError:
+            print(str(ser_bytes[0:len(ser_bytes) - 2].decode("utf-8")))
+    else: decoded_bytes = np.random.random_sample()
 
     datos[-1] = decoded_bytes
     curva.setData(datos)
