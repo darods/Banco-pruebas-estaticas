@@ -6,15 +6,18 @@ from pyqtgraph.Qt import QtGui, QtCore
 import numpy as np
 import pyqtgraph as pg
 import serial
-import time
-import csv
-
+from dataBase import data_base
+from communication import Communication
 import pyqtgraph.parametertree.parameterTypes as pTypes
 from pyqtgraph.parametertree import Parameter, ParameterTree, ParameterItem, registerParameterType
 from pyqtgraph.dockarea import *
 
 
 app = QtGui.QApplication([])
+# declare object for serial Communication
+#ser = Communication()
+# declare object for storage in CSV
+data_base = data_base()
 
 params = [
         {'name': 'Configuración de toma de datos', 'type': 'group', 'children': [
@@ -124,38 +127,46 @@ d2.hideTitleBar()
 d2.addWidget(p1)
 win.show()
 
-def update():
-    global curva, datos, decoded_bytes
-    datos[:-1] = datos[1:]
-    
-    if(puertoEncontrado == True):
-        try:
-            ser_bytes = ser.readline()
-            decoded_bytes = float(ser_bytes[0:len(ser_bytes) - 2].decode("utf-8"))
-            print(decoded_bytes)
-        except ValueError:
-            print(str(ser_bytes[0:len(ser_bytes) - 2].decode("utf-8")))
-    else: decoded_bytes = np.random.random_sample()
-
-    datos[-1] = decoded_bytes
-    curva.setData(datos)
-    QtGui.QApplication.processEvents()    # you MUST process the plot now
-    with open("test_data.csv", "a") as f:
-        writer = csv.writer(f, delimiter=",")
-        writer.writerow([time.asctime(), decoded_bytes])
-
-def start(state):
-    if (state==True):
-        while True:
-            update()
-    else:
-        print('detenido')
+flag = True
 
 def iniciar():
-    start(True)
+    flag = True
+    data_base.start()
 
 def detener():
-    start(False)
+    flag = False
+    data_base.stop()
+
+
+def update():
+    global curva, datos, decoded_bytes
+    if(flag):
+        datos[:-1] = datos[1:]
+    
+        if(puertoEncontrado == True):
+            try:
+                ser_bytes = ser.readline()
+                decoded_bytes = float(ser_bytes[0:len(ser_bytes) - 2].decode("utf-8"))
+                print(decoded_bytes)
+            except ValueError:
+                print(str(ser_bytes[0:len(ser_bytes) - 2].decode("utf-8")))
+        else: decoded_bytes = np.random.random_sample()
+        values = [decoded_bytes]
+        datos[-1] = decoded_bytes
+        curva.setData(datos)
+        QtGui.QApplication.processEvents()    # you MUST process the plot now
+        data_base.guardar(values)
+
+
+
+
+if(flag):
+    timer = pg.QtCore.QTimer()
+    timer.timeout.connect(update)
+    timer.start(500)
+
+else:
+    print('detenido')
 
 p.param('Almacenamiento de datos', 'Iniciar').sigActivated.connect(iniciar)
 p.param('Almacenamiento de datos', 'Detener').sigActivated.connect(detener)
